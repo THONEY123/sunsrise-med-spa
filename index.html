@@ -54,6 +54,10 @@
       overflow-x: hidden;
     }
 
+    body.drawer-open {
+      overflow: hidden;
+    }
+
     h1, h2, h3, h4, .serif {
       font-family: 'Cormorant Garamond', serif;
       font-weight: 600;
@@ -175,8 +179,7 @@
 
     /* Header & Navigation */
     header {
-      background-color: rgba(250, 247, 242, 0.96);
-      backdrop-filter: blur(10px);
+      background-color: rgba(250, 247, 242, 0.98);
       position: sticky;
       top: 0;
       z-index: 1000;
@@ -186,7 +189,6 @@
 
     header.scrolled {
       box-shadow: 0 8px 28px rgba(10, 34, 29, 0.08);
-      background-color: rgba(250, 247, 242, 0.99);
     }
 
     .navbar {
@@ -280,13 +282,31 @@
       color: var(--emerald-dark) !important;
     }
 
-    .menu-toggle {
+    .menu-toggle,
+    .drawer-close {
       display: none;
-      font-size: 1.5rem;
+      font-size: 1.4rem;
       color: var(--emerald-main);
       cursor: pointer;
       background: none;
       border: none;
+    }
+
+    /* Mobile Backdrop Overlay */
+    .nav-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 34, 29, 0.58);
+      backdrop-filter: blur(3px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      z-index: 1050;
+    }
+
+    .nav-backdrop.open {
+      opacity: 1;
+      visibility: visible;
     }
 
     /* Buttons with Gold Sheen Sweep */
@@ -911,24 +931,63 @@
 
     @media (max-width: 768px) {
       .menu-toggle {
-        display: block;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        background: rgba(15, 47, 40, 0.06);
+      }
+
+      .drawer-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        top: 18px;
+        right: 18px;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: rgba(15, 47, 40, 0.06);
       }
 
       .nav-links {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        width: 100%;
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 280px;
+        max-width: 82vw;
+        height: 100dvh;
         background: var(--ivory-bg);
         flex-direction: column;
-        padding: 24px;
+        align-items: flex-start;
+        justify-content: flex-start;
+        padding: 82px 28px 32px;
         gap: 18px;
-        border-bottom: 1px solid var(--sand-border);
-        display: none;
+        border-left: 1px solid var(--sand-border);
+        box-shadow: -12px 0 35px rgba(10, 34, 29, 0.22);
+        transform: translateX(100%);
+        transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        z-index: 1060;
       }
 
       .nav-links.open {
-        display: flex;
+        transform: translateX(0);
+      }
+
+      .nav-links a {
+        width: 100%;
+        font-size: 1.05rem;
+        padding: 8px 0;
+        text-align: left;
+      }
+
+      .nav-links .nav-cta {
+        margin-top: 12px;
+        text-align: center;
+        padding: 13px 20px !important;
       }
 
       .form-grid {
@@ -943,7 +1002,7 @@
 </head>
 <body>
 
-  <!-- Top Bar (Address removed as requested — kept in Footer & Contact page) -->
+  <!-- Top Bar (Address removed — kept in Footer & Contact page) -->
   <div class="top-bar">
     <div class="container">
       <span><i class="fas fa-clock"></i> Open 24 Hours Daily</span>
@@ -961,9 +1020,10 @@
         <span class="sub-title">Sunrise Clinics & Cosmetics</span>
       </div>
 
-      <button class="menu-toggle" aria-label="Toggle Menu"><i class="fas fa-bars"></i></button>
+      <button class="menu-toggle" id="menuToggleBtn" aria-label="Open Menu"><i class="fas fa-bars"></i></button>
 
       <nav class="nav-links" id="mainNav">
+        <button class="drawer-close" id="drawerCloseBtn" aria-label="Close Menu"><i class="fas fa-times"></i></button>
         <a data-page="home" class="active" onclick="navigateTo('home')">Home</a>
         <a data-page="services" onclick="navigateTo('services')">Treatments</a>
         <a data-page="about" onclick="navigateTo('about')">About Clinic</a>
@@ -972,6 +1032,9 @@
       </nav>
     </div>
   </header>
+
+  <!-- Mobile Drawer Backdrop -->
+  <div class="nav-backdrop" id="navBackdrop"></div>
 
   <!-- =====================================================================
        VIEW 1: HOME PAGE (#home)
@@ -1576,7 +1639,6 @@
     function initScrollAnimations(scope = document) {
       const revealEls = scope.querySelectorAll('.reveal-up, .reveal-left, .reveal-right, .reveal-scale');
 
-      // Apply smooth staggered delays for sibling cards in grids
       revealEls.forEach((el) => {
         const parent = el.parentElement;
         if (parent && (parent.classList.contains('grid-4') || parent.classList.contains('grid-3') || parent.classList.contains('insta-grid'))) {
@@ -1609,26 +1671,42 @@
     }
 
     /* ==========================================================================
-       4. MULTI-PAGE SPA ROUTER WITH HASH HISTORY SUPPORT
+       4. MOBILE SIDEWAYS DRAWER HELPERS
+       ========================================================================== */
+    function openMobileMenu() {
+      const navLinks = document.getElementById('mainNav');
+      const backdrop = document.getElementById('navBackdrop');
+      if (navLinks) navLinks.classList.add('open');
+      if (backdrop) backdrop.classList.add('open');
+      document.body.classList.add('drawer-open');
+    }
+
+    function closeMobileMenu() {
+      const navLinks = document.getElementById('mainNav');
+      const backdrop = document.getElementById('navBackdrop');
+      if (navLinks) navLinks.classList.remove('open');
+      if (backdrop) backdrop.classList.remove('open');
+      document.body.classList.remove('drawer-open');
+    }
+
+    /* ==========================================================================
+       5. MULTI-PAGE SPA ROUTER WITH HASH HISTORY SUPPORT
        ========================================================================== */
     const VALID_PAGES = ['home', 'services', 'about', 'booking', 'contact'];
 
     function navigateTo(pageId, param = null, updateHash = true) {
       if (!VALID_PAGES.includes(pageId)) pageId = 'home';
 
-      // Hide all pages
       document.querySelectorAll('.page-view').forEach(view => {
         view.classList.remove('active-view');
       });
 
-      // Show selected page
       const targetView = document.getElementById(`page-${pageId}`);
       if (targetView) {
         targetView.classList.add('active-view');
         initScrollAnimations(targetView);
       }
 
-      // Update active navbar link
       document.querySelectorAll('#mainNav a').forEach(link => {
         link.classList.remove('active');
         if (link.getAttribute('data-page') === pageId) {
@@ -1636,28 +1714,16 @@
         }
       });
 
-      // Close mobile menu if open
-      const navLinks = document.getElementById('mainNav');
-      const menuIcon = document.querySelector('.menu-toggle i');
-      if (navLinks && navLinks.classList.contains('open')) {
-        navLinks.classList.remove('open');
-        if (menuIcon) {
-          menuIcon.classList.add('fa-bars');
-          menuIcon.classList.remove('fa-times');
-        }
-      }
+      closeMobileMenu();
 
-      // Sync URL hash so browser Back/Forward buttons work naturally
       if (updateHash && window.location.hash !== `#${pageId}`) {
         history.pushState(null, '', `#${pageId}`);
       }
 
-      // Optional category filter when jumping to Services
       if (pageId === 'services') {
         filterServices(param || 'all');
       }
 
-      // Optional treatment pre-select when jumping to Booking
       if (pageId === 'booking' && param) {
         const serviceSelect = document.getElementById('serviceSelect');
         if (serviceSelect) {
@@ -1693,9 +1759,30 @@
     }
 
     /* ==========================================================================
-       5. INITIALIZATION ON DOM LOAD
+       6. INITIALIZATION ON DOM LOAD
        ========================================================================== */
     document.addEventListener('DOMContentLoaded', () => {
+      // Move #mainNav to <body> on mobile so header stacking context never clips it
+      const mainNav = document.getElementById('mainNav');
+      const navbar = document.querySelector('.navbar');
+      const mobileMq = window.matchMedia('(max-width: 768px)');
+
+      function syncNavParent(e) {
+        if (!mainNav || !navbar) return;
+        if (e.matches) {
+          if (mainNav.parentElement !== document.body) {
+            document.body.appendChild(mainNav);
+          }
+        } else {
+          closeMobileMenu();
+          if (mainNav.parentElement !== navbar) {
+            navbar.appendChild(mainNav);
+          }
+        }
+      }
+      syncNavParent(mobileMq);
+      mobileMq.addEventListener('change', syncNavParent);
+
       // Sticky header shadow on scroll
       const siteHeader = document.getElementById('siteHeader');
       window.addEventListener('scroll', () => {
@@ -1756,19 +1843,14 @@
       // Initialize animations for initially active view
       initScrollAnimations(document.querySelector('.page-view.active-view') || document);
 
-      // Mobile Menu Toggle
-      const menuToggle = document.querySelector('.menu-toggle');
-      const navLinks = document.getElementById('mainNav');
-      if (menuToggle && navLinks) {
-        menuToggle.addEventListener('click', () => {
-          navLinks.classList.toggle('open');
-          const icon = menuToggle.querySelector('i');
-          if (icon) {
-            icon.classList.toggle('fa-bars');
-            icon.classList.toggle('fa-times');
-          }
-        });
-      }
+      // Mobile Sideways Drawer Controls
+      const menuToggleBtn = document.getElementById('menuToggleBtn');
+      const drawerCloseBtn = document.getElementById('drawerCloseBtn');
+      const navBackdrop = document.getElementById('navBackdrop');
+
+      if (menuToggleBtn) menuToggleBtn.addEventListener('click', openMobileMenu);
+      if (drawerCloseBtn) drawerCloseBtn.addEventListener('click', closeMobileMenu);
+      if (navBackdrop) navBackdrop.addEventListener('click', closeMobileMenu);
 
       // Filter Buttons Click Listener
       document.querySelectorAll('.filter-btn').forEach(btn => {
