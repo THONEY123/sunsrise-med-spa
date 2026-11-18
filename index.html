@@ -289,6 +289,23 @@
       border: none;
     }
 
+    /* Mobile Backdrop Overlay */
+    .nav-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 34, 29, 0.55);
+      backdrop-filter: blur(3px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      z-index: 1001;
+    }
+
+    .nav-backdrop.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
     /* Buttons with Gold Sheen Sweep */
     .btn {
       display: inline-flex;
@@ -911,24 +928,52 @@
 
     @media (max-width: 768px) {
       .menu-toggle {
-        display: block;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        background: rgba(15, 47, 40, 0.06);
+        z-index: 1003;
       }
 
       .nav-links {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        width: 100%;
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 275px;
+        max-width: 80vw;
+        height: 100dvh;
         background: var(--ivory-bg);
         flex-direction: column;
-        padding: 24px;
-        gap: 18px;
-        border-bottom: 1px solid var(--sand-border);
-        display: none;
+        align-items: flex-start;
+        justify-content: flex-start;
+        padding: 88px 28px 32px;
+        gap: 20px;
+        border-left: 1px solid var(--sand-border);
+        box-shadow: -12px 0 35px rgba(10, 34, 29, 0.18);
+        transform: translateX(100%);
+        transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        z-index: 1002;
+        display: flex;
       }
 
       .nav-links.open {
-        display: flex;
+        transform: translateX(0);
+      }
+
+      .nav-links a {
+        width: 100%;
+        font-size: 1.05rem;
+        padding: 8px 0;
+        text-align: left;
+      }
+
+      .nav-links .nav-cta {
+        margin-top: 10px;
+        text-align: center;
+        padding: 13px 20px !important;
       }
 
       .form-grid {
@@ -943,7 +988,7 @@
 </head>
 <body>
 
-  <!-- Top Bar (Address removed as requested — kept in Footer & Contact page) -->
+  <!-- Top Bar (Address removed — kept in Footer & Contact page) -->
   <div class="top-bar">
     <div class="container">
       <span><i class="fas fa-clock"></i> Open 24 Hours Daily</span>
@@ -972,6 +1017,9 @@
       </nav>
     </div>
   </header>
+
+  <!-- Mobile Drawer Backdrop -->
+  <div class="nav-backdrop" id="navBackdrop"></div>
 
   <!-- =====================================================================
        VIEW 1: HOME PAGE (#home)
@@ -1609,7 +1657,22 @@
     }
 
     /* ==========================================================================
-       4. MULTI-PAGE SPA ROUTER WITH HASH HISTORY SUPPORT
+       4. MOBILE SIDEWAYS DRAWER HELPER
+       ========================================================================== */
+    function closeMobileMenu() {
+      const navLinks = document.getElementById('mainNav');
+      const backdrop = document.getElementById('navBackdrop');
+      const menuIcon = document.querySelector('.menu-toggle i');
+      if (navLinks) navLinks.classList.remove('open');
+      if (backdrop) backdrop.classList.remove('open');
+      if (menuIcon) {
+        menuIcon.classList.add('fa-bars');
+        menuIcon.classList.remove('fa-times');
+      }
+    }
+
+    /* ==========================================================================
+       5. MULTI-PAGE SPA ROUTER WITH HASH HISTORY SUPPORT
        ========================================================================== */
     const VALID_PAGES = ['home', 'services', 'about', 'booking', 'contact'];
 
@@ -1636,16 +1699,8 @@
         }
       });
 
-      // Close mobile menu if open
-      const navLinks = document.getElementById('mainNav');
-      const menuIcon = document.querySelector('.menu-toggle i');
-      if (navLinks && navLinks.classList.contains('open')) {
-        navLinks.classList.remove('open');
-        if (menuIcon) {
-          menuIcon.classList.add('fa-bars');
-          menuIcon.classList.remove('fa-times');
-        }
-      }
+      // Close mobile side drawer if open
+      closeMobileMenu();
 
       // Sync URL hash so browser Back/Forward buttons work naturally
       if (updateHash && window.location.hash !== `#${pageId}`) {
@@ -1693,7 +1748,7 @@
     }
 
     /* ==========================================================================
-       5. INITIALIZATION ON DOM LOAD
+       6. INITIALIZATION ON DOM LOAD
        ========================================================================== */
     document.addEventListener('DOMContentLoaded', () => {
       // Sticky header shadow on scroll
@@ -1756,18 +1811,25 @@
       // Initialize animations for initially active view
       initScrollAnimations(document.querySelector('.page-view.active-view') || document);
 
-      // Mobile Menu Toggle
+      // Mobile Sideways Drawer Toggle & Backdrop Listener
       const menuToggle = document.querySelector('.menu-toggle');
       const navLinks = document.getElementById('mainNav');
+      const navBackdrop = document.getElementById('navBackdrop');
+
       if (menuToggle && navLinks) {
         menuToggle.addEventListener('click', () => {
-          navLinks.classList.toggle('open');
+          const isOpen = navLinks.classList.toggle('open');
+          if (navBackdrop) navBackdrop.classList.toggle('open', isOpen);
           const icon = menuToggle.querySelector('i');
           if (icon) {
-            icon.classList.toggle('fa-bars');
-            icon.classList.toggle('fa-times');
+            icon.classList.toggle('fa-bars', !isOpen);
+            icon.classList.toggle('fa-times', isOpen);
           }
         });
+      }
+
+      if (navBackdrop) {
+        navBackdrop.addEventListener('click', closeMobileMenu);
       }
 
       // Filter Buttons Click Listener
